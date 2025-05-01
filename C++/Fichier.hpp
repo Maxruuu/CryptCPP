@@ -17,6 +17,7 @@ public:
     std::string lire();
     void effacerContenu();
     void fermer();
+    static bool fichierExiste(const std::string& cheminComplet);
 };
 
 #endif

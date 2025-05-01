@@ -1,13 +1,9 @@
 #include <iostream>
 
-#include "FichierCle.hpp"
-#include "Message.hpp"
+#include "Application.hpp"
 
 int main() {
-    MCesar test("Docd no mrsppbowoxd Méckb.");
-    Cle cle("10");
+    Application app;
 
-    test.setCle(&cle);
-
-    std::cout << test.dechiffrer() << std::endl;
+    app.demarrer();
 }

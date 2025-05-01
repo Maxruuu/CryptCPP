@@ -9,7 +9,7 @@
     Message
 =============================*/
 
-class Message {
+class Message : public IChiffrable {
 protected:
     std::string clair;
 
@@ -20,6 +20,8 @@ public:
     Message(const std::string& texte);
     void setCle(Cle* nouvelleCle);
     const Cle* getCle() const;
+    std::string chiffrer() const override = 0;
+    std::string dechiffrer() const override = 0;
 
 };
 
@@ -27,7 +29,7 @@ public:
     Cesar
 =============================*/
 
-class MCesar : public Message, public IChiffrable {
+class MCesar : public Message {
 public:
     MCesar(const std::string& texte);
 
@@ -39,7 +41,7 @@ public:
     XOR
 =============================*/
 
-class MXOR : public Message, public IChiffrable {
+class MXOR : public Message {
 public:
     MXOR(const std::string& texte);
     
@@ -51,7 +53,7 @@ public:
     Vigenere
 =============================*/
 
-class MVigenere : public Message, public IChiffrable {
+class MVigenere : public Message {
 public:
     MVigenere(const std::string& texte);
     

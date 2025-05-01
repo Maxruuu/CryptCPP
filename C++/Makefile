@@ -1,8 +1,11 @@
-main: main.o Fichier.o FichierCle.o Cle.o Message.o
-	g++ main.o Fichier.o FichierCle.o Cle.o Message.o -o main
+main: main.o Fichier.o FichierCle.o Cle.o Message.o Application.o
+	g++ main.o Fichier.o Application.o FichierCle.o Cle.o Message.o -o main
 
 main.o: main.cpp FichierCle.hpp
 	g++ -c main.cpp
+
+Application.o: Application.cpp Application.hpp Message.hpp
+	g++ -c Application.cpp
 
 Message.o : Message.cpp Message.hpp
 	g++ -c Message.cpp

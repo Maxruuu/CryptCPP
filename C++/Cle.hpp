@@ -9,6 +9,7 @@ private:
     std::string valeur;
 
 public:
+    Cle() = default;
     Cle(const std::string& valeur);
     const std::string getValeur() const;
 

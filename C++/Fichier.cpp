@@ -1,6 +1,9 @@
 #include "Fichier.hpp"
 #include <sstream>
 #include <iostream>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 Fichier::Fichier(const std::string& nomFichier) : nom(nomFichier) {
     fichier.open(nom, std::ios::in | std::ios::out);
@@ -48,4 +51,8 @@ void Fichier::fermer() {
     if (fichier.is_open()) {
         fichier.close();
     }
+}
+
+bool Fichier::fichierExiste(const std::string& cheminComplet) {
+    return fs::exists(cheminComplet);
 }
