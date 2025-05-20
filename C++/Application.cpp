@@ -6,6 +6,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <vector>
+#include <openssl/rand.h>
 
 namespace fs = std::filesystem;
 
@@ -17,7 +18,7 @@ std::string Application::demander(const std::string& message) const {
 }
 
 void Application::demarrer() {
-    const std::vector<std::string> types = {"cesar", "xor", "vigenere"};
+    const std::vector<std::string> types = {"cesar", "xor", "vigenere", "aes"};
 
     const char* home = std::getenv("HOME");
     if (!home) {
@@ -47,17 +48,36 @@ void Application::demarrer() {
         } else {
             std::string reponse = demander("Clé " + type + " non trouvée. Voulez-vous la créer ? (y/n) ");
             if (reponse == "y" || reponse == "Y") {
-                std::string valeurCle = demander("Entrez la valeur pour la clé " + type + " : ");
-                Cle nouvelleCle(valeurCle);
-                cles[type] = nouvelleCle;
+                if (type == "aes") {
+                    unsigned char cleAES[32]; // Clé AES-256
+                    if (!RAND_bytes(cleAES, sizeof(cleAES))) {
+                        std::cerr << "Erreur : Impossible de générer une clé AES." << std::endl;
+                        continue;
+                    }
+                    std::string valeurCle(reinterpret_cast<char*>(cleAES), sizeof(cleAES));
+                    cles[type] = Cle(valeurCle);
 
-                std::ofstream fichier(cheminComplet);
-                if (fichier.is_open()) {
-                    fichier << valeurCle;
-                    fichier.close();
-                    std::cout << "Clé " << type << " enregistrée dans : " << cheminComplet << std::endl;
+                    std::ofstream fichier(cheminComplet, std::ios::binary);
+                    if (fichier.is_open()) {
+                        fichier.write(valeurCle.c_str(), valeurCle.size());
+                        fichier.close();
+                        std::cout << "Clé AES enregistrée dans : " << cheminComplet << std::endl;
+                    } else {
+                        std::cerr << "Erreur : impossible d’écrire la clé AES dans " << cheminComplet << std::endl;
+                    }
                 } else {
-                    std::cerr << "Erreur : impossible d’écrire la clé dans " << cheminComplet << std::endl;
+                    std::string valeurCle = demander("Entrez la valeur pour la clé " + type + " : ");
+                    Cle nouvelleCle(valeurCle);
+                    cles[type] = nouvelleCle;
+
+                    std::ofstream fichier(cheminComplet);
+                    if (fichier.is_open()) {
+                        fichier << valeurCle;
+                        fichier.close();
+                        std::cout << "Clé " << type << " enregistrée dans : " << cheminComplet << std::endl;
+                    } else {
+                        std::cerr << "Erreur : impossible d’écrire la clé dans " << cheminComplet << std::endl;
+                    }
                 }
             }
         }
@@ -66,7 +86,7 @@ void Application::demarrer() {
     std::cout << "\n=== Menu principal ===" << std::endl;
     std::string action = demander("Voulez-vous chiffrer ou dechiffrer ? ");
     std::string cible = demander("Sur une phrase ou un fichier ? ");
-    std::string algo = demander("Quel algorithme ? (cesar/xor/vigenere) ");
+    std::string algo = demander("Quel algorithme ? (cesar/xor/vigenere/aes) ");
 
     if (cles.find(algo) == cles.end()) {
         std::cerr << "Clé " << algo << " non chargée. Abandon." << std::endl;
@@ -89,6 +109,7 @@ void Application::demarrer() {
     if (algo == "cesar") message = new MCesar(texte);
     else if (algo == "xor") message = new MXOR(texte);
     else if (algo == "vigenere") message = new MVigenere(texte);
+    else if (algo == "aes") message = new MAES(texte);
 
     if (message) {
         message->setCle(&cles[algo]);

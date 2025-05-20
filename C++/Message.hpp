@@ -61,4 +61,16 @@ public:
     std::string dechiffrer() const override;
 };
 
+/*===========================
+    AES
+=============================*/
+
+class MAES : public Message {
+public:
+    MAES(const std::string& texte);
+
+    std::string chiffrer() const override;
+    std::string dechiffrer() const override;
+};
+
 #endif

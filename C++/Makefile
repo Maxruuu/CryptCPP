@@ -1,23 +1,30 @@
-main: main.o Fichier.o FichierCle.o Cle.o Message.o Application.o
-	g++ main.o Fichier.o Application.o FichierCle.o Cle.o Message.o -o main
+CXX = g++
+CXXFLAGS = -Wall -Wextra -std=c++17
+LDFLAGS = -lssl -lcrypto
 
+# Cibles principales
+main: main.o Fichier.o FichierCle.o Cle.o Message.o Application.o
+	$(CXX) main.o Fichier.o Application.o FichierCle.o Cle.o Message.o -o main $(LDFLAGS)
+
+# Compilation des fichiers sources
 main.o: main.cpp FichierCle.hpp
-	g++ -c main.cpp
+	$(CXX) $(CXXFLAGS) -c main.cpp
 
 Application.o: Application.cpp Application.hpp Message.hpp
-	g++ -c Application.cpp
+	$(CXX) $(CXXFLAGS) -c Application.cpp
 
-Message.o : Message.cpp Message.hpp
-	g++ -c Message.cpp
+Message.o: Message.cpp Message.hpp
+	$(CXX) $(CXXFLAGS) -c Message.cpp
 
 Cle.o: Cle.cpp Cle.hpp
-	g++ -c Cle.cpp
+	$(CXX) $(CXXFLAGS) -c Cle.cpp
 
-FichierCle.o : FichierCle.cpp FichierCle.hpp Fichier.hpp
-	g++ -c FichierCle.cpp
+FichierCle.o: FichierCle.cpp FichierCle.hpp Fichier.hpp
+	$(CXX) $(CXXFLAGS) -c FichierCle.cpp
 
-Fichier.o : Fichier.cpp Fichier.hpp
-	g++ -c Fichier.cpp
+Fichier.o: Fichier.cpp Fichier.hpp
+	$(CXX) $(CXXFLAGS) -c Fichier.cpp
 
+# Nettoyage des fichiers objets
 clean:
-	rm *.o
+	rm -f *.o main
