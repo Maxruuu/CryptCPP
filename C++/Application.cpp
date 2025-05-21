@@ -1,127 +1,210 @@
 #include "Application.hpp"
+#include "Window.hpp"
 #include "Fichier.hpp"
+#include "FichierCle.hpp"
 
-#include <iostream>
 #include <filesystem>
 #include <fstream>
 #include <cstdlib>
-#include <vector>
-#include <openssl/rand.h>
+#include <memory>
+#include <algorithm>
+#include <cctype>
 
 namespace fs = std::filesystem;
 
-std::string Application::demander(const std::string& message) const {
-    std::string reponse;
-    std::cout << message;
-    std::getline(std::cin, reponse);
-    return reponse;
+bool estEntier(const std::string& s) {
+    return !s.empty() && std::all_of(s.begin(), s.end(), ::isdigit);
 }
 
-void Application::demarrer() {
+void Application::chargerOuCreerCles() {
     const std::vector<std::string> types = {"cesar", "xor", "vigenere", "aes"};
-
     const char* home = std::getenv("HOME");
-    if (!home) {
-        std::cerr << "Erreur : impossible d'accéder au répertoire personnel (HOME)." << std::endl;
-        return;
-    }
-
     std::string dossierCles = std::string(home) + "/MesCles/";
-    fs::create_directories(dossierCles); // crée ~/MesCles/ s’il n’existe pas
+    fs::create_directories(dossierCles);
 
-    std::cout << "=== Initialisation des clés ===" << std::endl;
-    for (const std::string& type : types) {
-        std::string nomFichier = type + ".cle";
-        std::string cheminComplet = dossierCles + nomFichier;
-
+    for (const auto& type : types) {
+        std::string cheminComplet = dossierCles + type + ".cle";
         if (Fichier::fichierExiste(cheminComplet)) {
-            std::string reponse = demander("Clé " + type + " trouvée. La charger ? (y/n) ");
-            if (reponse == "y" || reponse == "Y") {
-                try {
-                    FichierCle fichierCle(cheminComplet);
-                    cles[type] = *fichierCle.getCle();
-                    std::cout << "Clé " << type << " chargée : " << cles[type].getValeur() << std::endl;
-                } catch (const std::exception& e) {
-                    std::cerr << "Erreur lors du chargement de la clé " << type << " : " << e.what() << std::endl;
+            WindowMenu menu("Clé trouvée pour " + type, {"La charger", "En entrer une nouvelle"});
+            menu.show();
+            if (menu.getChoice() == 3) continue;
+
+            if (menu.getChoice() == 1) {
+                FichierCle fichierCle(cheminComplet);
+                cles[type] = *fichierCle.getCle();
+            } else {
+                WindowForm form("Nouvelle clé pour " + type, {"Valeur"});
+                form.show();
+                std::string val = form.getAnswer().at("Valeur");
+
+                if (type == "cesar" && !estEntier(val)) {
+                    WindowInfo err("Erreur", {"La clé César doit être un entier."});
+                    err.show();
+                    continue;
                 }
+                if (type == "aes" && val.size() != 32) {
+                    WindowInfo err("Erreur", {"La clé AES doit contenir exactement 32 caractères."});
+                    err.show();
+                    continue;
+                }
+
+                cles[type] = Cle(val);
+                std::ofstream fichier(cheminComplet);
+                fichier << val;
             }
         } else {
-            std::string reponse = demander("Clé " + type + " non trouvée. Voulez-vous la créer ? (y/n) ");
-            if (reponse == "y" || reponse == "Y") {
-                if (type == "aes") {
-                    unsigned char cleAES[32]; // Clé AES-256
-                    if (!RAND_bytes(cleAES, sizeof(cleAES))) {
-                        std::cerr << "Erreur : Impossible de générer une clé AES." << std::endl;
-                        continue;
-                    }
-                    std::string valeurCle(reinterpret_cast<char*>(cleAES), sizeof(cleAES));
-                    cles[type] = Cle(valeurCle);
+            WindowForm form("Aucune clé trouvée pour " + type + ". Veuillez en entrer une.", {"Valeur"});
+            form.show();
+            std::string val = form.getAnswer().at("Valeur");
 
-                    std::ofstream fichier(cheminComplet, std::ios::binary);
-                    if (fichier.is_open()) {
-                        fichier.write(valeurCle.c_str(), valeurCle.size());
-                        fichier.close();
-                        std::cout << "Clé AES enregistrée dans : " << cheminComplet << std::endl;
-                    } else {
-                        std::cerr << "Erreur : impossible d’écrire la clé AES dans " << cheminComplet << std::endl;
-                    }
-                } else {
-                    std::string valeurCle = demander("Entrez la valeur pour la clé " + type + " : ");
-                    Cle nouvelleCle(valeurCle);
-                    cles[type] = nouvelleCle;
-
-                    std::ofstream fichier(cheminComplet);
-                    if (fichier.is_open()) {
-                        fichier << valeurCle;
-                        fichier.close();
-                        std::cout << "Clé " << type << " enregistrée dans : " << cheminComplet << std::endl;
-                    } else {
-                        std::cerr << "Erreur : impossible d’écrire la clé dans " << cheminComplet << std::endl;
-                    }
-                }
+            if (type == "cesar" && !estEntier(val)) {
+                WindowInfo err("Erreur", {"La clé César doit être un entier."});
+                err.show();
+                continue;
             }
+            if (type == "aes" && val.size() != 32) {
+                WindowInfo err("Erreur", {"La clé AES doit contenir exactement 32 caractères."});
+                err.show();
+                continue;
+            }
+
+            cles[type] = Cle(val);
+            std::ofstream fichier(cheminComplet);
+            fichier << val;
         }
     }
+}
 
-    std::cout << "\n=== Menu principal ===" << std::endl;
-    std::string action = demander("Voulez-vous chiffrer ou dechiffrer ? ");
-    std::string cible = demander("Sur une phrase ou un fichier ? ");
-    std::string algo = demander("Quel algorithme ? (cesar/xor/vigenere/aes) ");
+void Application::changerCles() {
+    const std::vector<std::string> types = {"cesar", "xor", "vigenere", "aes"};
+    const char* home = std::getenv("HOME");
+    std::string dossierCles = std::string(home) + "/MesCles/";
+
+    for (const auto& type : types) {
+        WindowMenu modif("Modifier la clé pour " + type + " ?", {"Oui", "Non"});
+        modif.show();
+        if (modif.getChoice() == 3) return;
+
+        if (modif.getChoice() == 1) {
+            WindowForm form("Nouvelle clé pour " + type, {"Valeur"});
+            form.show();
+            std::string val = form.getAnswer().at("Valeur");
+
+            if (type == "cesar" && !estEntier(val)) {
+                WindowInfo err("Erreur", {"La clé César doit être un entier."});
+                err.show();
+                continue;
+            }
+            if (type == "aes" && val.size() != 32) {
+                WindowInfo err("Erreur", {"La clé AES doit contenir exactement 32 caractères."});
+                err.show();
+                continue;
+            }
+
+            cles[type] = Cle(val);
+            std::string cheminComplet = dossierCles + type + ".cle";
+            std::ofstream fichier(cheminComplet);
+            fichier << val;
+        }
+    }
+}
+
+
+void Application::traiterMessage() {
+    const std::vector<std::string> types = {"cesar", "xor", "vigenere", "aes"};
+
+    WindowMenu actionMenu("Action", {"Chiffrer", "Déchiffrer"});
+    actionMenu.show();
+    if (actionMenu.getChoice() == 3) return;
+    bool chiffrer = actionMenu.getChoice() == 1;
+
+    WindowMenu cibleMenu("Type de traitement", {"Phrase", "Fichier"});
+    cibleMenu.show();
+    if (cibleMenu.getChoice() == 3) return;
+    bool surPhrase = cibleMenu.getChoice() == 1;
+
+    WindowMenu algoMenu("Choix de l'algorithme", {"cesar", "xor", "vigenere", "aes"});
+    algoMenu.show();
+    if (algoMenu.getChoice() == 5) return;
+    std::string algo = types[algoMenu.getChoice() - 1];
 
     if (cles.find(algo) == cles.end()) {
-        std::cerr << "Clé " << algo << " non chargée. Abandon." << std::endl;
+        WindowInfo erreur("Erreur", {"Clé non chargée pour l'algorithme choisi."});
+        erreur.show();
         return;
     }
 
     std::string texte;
-    if (cible == "phrase") {
-        texte = demander("Entrez la phrase : ");
-    } else if (cible == "fichier") {
-        std::string chemin = demander("Chemin du fichier : ");
+    if (surPhrase) {
+        WindowForm saisie("Texte à traiter", {"Texte"});
+        saisie.show();
+        texte = saisie.getAnswer().at("Texte");
+    } else {
+        WindowForm fichierDemande("Fichier à lire", {"Chemin"});
+        fichierDemande.show();
+        std::string chemin = fichierDemande.getAnswer().at("Chemin");
         Fichier f(chemin);
         texte = f.lire();
-    } else {
-        std::cerr << "Option invalide." << std::endl;
+    }
+
+    std::unique_ptr<Message> message;
+    if (algo == "cesar") message = std::make_unique<MCesar>(texte);
+    else if (algo == "xor") message = std::make_unique<MXOR>(texte);
+    else if (algo == "vigenere") message = std::make_unique<MVigenere>(texte);
+    else if (algo == "aes") message = std::make_unique<MAES>(texte);
+
+    message->setCle(&cles[algo]);
+    std::string resultat = chiffrer ? message->chiffrer() : message->dechiffrer();
+
+    WindowInfo resultatWindow("Résultat", {resultat});
+    resultatWindow.show();
+}
+
+void Application::afficherCles() {
+    std::vector<std::string> lignes;
+    for (const auto& [nom, cle] : cles) {
+        lignes.push_back(nom + " : " + cle.getValeur());
+    }
+    if (lignes.empty()) lignes.push_back("Aucune clé chargée.");
+    WindowInfo infos("Clés chargées", lignes);
+    infos.show();
+}
+
+void Application::demarrer() {
+    const char* home = std::getenv("HOME");
+    if (!home) {
+        WindowInfo erreur("Erreur", {"Impossible d'accéder au répertoire personnel (HOME)."});
+        erreur.show();
         return;
     }
 
-    Message* message = nullptr;
-    if (algo == "cesar") message = new MCesar(texte);
-    else if (algo == "xor") message = new MXOR(texte);
-    else if (algo == "vigenere") message = new MVigenere(texte);
-    else if (algo == "aes") message = new MAES(texte);
+    std::system("clear");
 
-    if (message) {
-        message->setCle(&cles[algo]);
+    WindowMenu chargement("Souhaitez-vous charger et/ou créer vos clés ?", {"Oui", "Non (toutes les clés seront vidées)"});
+    chargement.show();
+    if (chargement.getChoice() == 3) return;
 
-        if (action == "chiffrer") {
-            std::cout << "Texte chiffré :\n" << message->chiffrer() << std::endl;
-        } else if (action == "dechiffrer") {
-            std::cout << "Texte déchiffré :\n" << message->dechiffrer() << std::endl;
-        } else {
-            std::cerr << "Action invalide." << std::endl;
-        }
-
-        delete message;
+    if (chargement.getChoice() == 1) {
+        chargerOuCreerCles();
     }
+
+    while (true) {
+        WindowMenu menuPrincipal("Menu principal", {"Chiffrer / Déchiffrer", "Changer les clés", "Afficher les clés"});
+        menuPrincipal.show();
+        int choixPrincipal = menuPrincipal.getChoice();
+    
+        switch (choixPrincipal) {
+            case 1:
+                traiterMessage();
+                break;
+            case 2:
+                changerCles();
+                break;
+            case 3:
+                afficherCles();
+                break;
+            case 4:
+                return;
+        }
+    }    
 }

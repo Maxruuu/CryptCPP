@@ -44,7 +44,7 @@ void Fichier::effacerContenu() {
 
     fichier.open(nom, std::ios::out | std::ios::trunc);
     fichier.close();
-    fichier.open(nom, std::ios::in | std::ios::out | std::ios::app);
+    fichier.open(nom, std::ios::in | std::ios::out);
 }
 
 void Fichier::fermer() {
